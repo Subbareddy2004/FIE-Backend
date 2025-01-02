@@ -13,6 +13,16 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Routes
+app.use('/api/events', require('./routes/events'));
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/teams', require('./routes/teams'));
+
+// Test route
+app.get('/', (req, res) => {
+    res.json({ message: 'Event Management API is running!' });
+});
+
 // Global error handler
 app.use((err, req, res, next) => {
     console.error('Global error:', err);
@@ -22,26 +32,14 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/events', require('./routes/events'));
-app.use('/api/teams', require('./routes/teams'));
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-})
-.then(() => {
-    console.log('Connected to MongoDB');
-    
-    // Start server only after successful DB connection
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-})
-.catch(err => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
+
+module.exports = app;
