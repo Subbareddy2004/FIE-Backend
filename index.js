@@ -6,17 +6,15 @@ const dotenv = require('dotenv');
 dotenv.config();
 const app = express();
 
-// Middleware
-app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true
-}));
+// Basic CORS setup for local development
+app.use(cors());
 app.use(express.json());
 
 // Routes
 app.use('/api/events', require('./routes/events'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/teams', require('./routes/teams'));
+app.use('/api/public/events', require('./routes/publicEvents'));
 
 // Test route
 app.get('/', (req, res) => {

@@ -17,6 +17,7 @@
     "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.3",
+    "nodemailer": "^6.9.16",
     "pdfkit": "^0.16.0"
   }
 }

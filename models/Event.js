@@ -48,9 +48,24 @@ const eventSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    paymentDetails: {
+        upiId: {
+            type: String,
+            required: function() {
+                return this.entryFee > 0;
+            }
+        },
+        paymentRequired: {
+            type: Boolean,
+            default: function() {
+                return this.entryFee > 0;
+            }
+        }
+    },
     maxTeams: {
         type: Number,
-        required: true
+        required: true,
+        min: 1
     },
     teamSize: {
         min: {
@@ -77,8 +92,29 @@ const eventSchema = new mongoose.Schema({
     registeredTeams: {
         type: Number,
         default: 0
+    },
+    totalPaymentsReceived: {
+        type: Number,
+        default: 0
+    },
+    shareLink: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    isPublic: {
+        type: Boolean,
+        default: false
     }
 }, { timestamps: true });
+
+// Generate share link before saving if not exists
+eventSchema.pre('save', function(next) {
+    if (!this.shareLink) {
+        this.shareLink = `${this._id}-${Math.random().toString(36).substring(2, 8)}`;
+    }
+    next();
+});
 
 // Virtual field for registration status
 eventSchema.virtual('isRegistrationOpen').get(function() {
