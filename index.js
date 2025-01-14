@@ -6,9 +6,21 @@ const dotenv = require('dotenv');
 dotenv.config();
 const app = express();
 
-// Basic CORS setup for local development
-app.use(cors());
+// CORS configuration
+const corsOptions = {
+    origin: process.env.CORS_ORIGIN || 'https://hackon.vercel.app',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+
+// Apply CORS with configuration
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Enable pre-flight requests for all routes
+app.options('*', cors(corsOptions));
 
 // Routes
 app.use('/api/events', require('./routes/events'));
@@ -32,12 +44,25 @@ app.use((err, req, res, next) => {
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('Connected to MongoDB'))
-    .catch(err => console.error('MongoDB connection error:', err));
+    .then(() => {
+        console.log('Connected to MongoDB');
+        const PORT = process.env.PORT || 5000;
+        app.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+        });
+    })
+    .catch((err) => {
+        console.error('MongoDB connection error:', err);
+        process.exit(1);
+    });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+    console.error('Unhandled Promise Rejection:', err);
+    // Don't exit the process in production
+    if (process.env.NODE_ENV === 'development') {
+        process.exit(1);
+    }
 });
 
 module.exports = app;
