@@ -6,6 +6,7 @@ const Team = require('../models/Team');
 const { sendRegistrationPendingEmail } = require('../services/emailService');
 const json2csv = require('json2csv').parse;
 const PDFDocument = require('pdfkit');
+const mongoose = require('mongoose');
 
 // Get all events with filters
 router.get('/', async (req, res) => {
@@ -21,6 +22,7 @@ router.get('/', async (req, res) => {
             .sort('-createdAt');
         res.json(events);
     } catch (error) {
+        console.error('Error fetching events:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -33,6 +35,7 @@ router.get('/manager', auth, async (req, res) => {
             .sort('-createdAt');
         res.json(events);
     } catch (error) {
+        console.error('Error fetching manager events:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -46,6 +49,7 @@ router.post('/', auth, async (req, res) => {
         });
         res.status(201).json(event);
     } catch (error) {
+        console.error('Error creating event:', error);
         res.status(400).json({ 
             message: 'Invalid event data', 
             error: error.message 
@@ -56,9 +60,14 @@ router.post('/', auth, async (req, res) => {
 // Get event by ID
 router.get('/:id', async (req, res) => {
     try {
-        // Validate event ID format
-        const eventId = req.params.id.split('-')[0]; // Get the base ID without any suffix
-        if (!eventId.match(/^[0-9a-fA-F]{24}$/)) {
+        const eventId = req.params.id;
+        
+        // Log the received ID for debugging
+        console.log('Received event ID:', eventId);
+
+        // Validate MongoDB ObjectId
+        if (!mongoose.Types.ObjectId.isValid(eventId)) {
+            console.log('Invalid event ID format:', eventId);
             return res.status(400).json({ message: 'Invalid event ID format' });
         }
 
@@ -66,18 +75,18 @@ router.get('/:id', async (req, res) => {
             .populate('manager', 'name organization');
             
         if (!event) {
+            console.log('Event not found for ID:', eventId);
             return res.status(404).json({ message: 'Event not found' });
         }
-        
-        // Add error logging
-        console.log(`Event retrieved successfully: ${eventId}`);
+
+        // Log successful retrieval
+        console.log('Event retrieved successfully:', event._id);
         res.json(event);
     } catch (error) {
         console.error('Error fetching event:', error);
         res.status(500).json({ 
             message: 'Error fetching event', 
-            error: error.message,
-            details: 'Please check the event ID format and try again'
+            error: error.message 
         });
     }
 });
@@ -110,6 +119,7 @@ router.put('/:id', auth, async (req, res) => {
 
         res.json(updatedEvent);
     } catch (error) {
+        console.error('Error updating event:', error);
         res.status(400).json({ 
             message: 'Invalid update data', 
             error: error.message 
@@ -179,6 +189,7 @@ router.delete('/:id', auth, async (req, res) => {
         await Event.findByIdAndDelete(req.params.id);
         res.json({ message: 'Event deleted successfully' });
     } catch (error) {
+        console.error('Error deleting event:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -204,6 +215,7 @@ router.get('/:id/stats', auth, async (req, res) => {
 
         res.json(stats);
     } catch (error) {
+        console.error('Error fetching event statistics:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
