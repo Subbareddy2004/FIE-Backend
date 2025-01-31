@@ -18,9 +18,12 @@ const auth = async (req, res, next) => {
             return res.status(401).json({ message: 'Token is not valid' });
         }
 
+        // Set both user and manager for backward compatibility
+        req.user = manager;
         req.manager = manager;
         next();
     } catch (error) {
+        console.error('Auth middleware error:', error);
         res.status(401).json({ message: 'Token is not valid' });
     }
 };

@@ -6,21 +6,49 @@ const Manager = require('../models/Manager');
 // Manager Registration
 router.post('/register', async (req, res) => {
     try {
-        const { name, email, password, organization } = req.body;
+        const { name, email, password, organization, department, role } = req.body;
+
+        // Validate required fields
+        const requiredFields = ['name', 'email', 'password', 'organization', 'department', 'role'];
+        const missingFields = requiredFields.filter(field => !req.body[field]);
+        
+        if (missingFields.length > 0) {
+            console.log('Missing required fields:', missingFields);
+            return res.status(400).json({ 
+                message: 'Missing required fields', 
+                fields: missingFields 
+            });
+        }
+
+        // Validate role
+        const validRoles = ['professor', 'hod', 'coordinator', 'other'];
+        if (!validRoles.includes(role)) {
+            console.log('Invalid role:', role);
+            return res.status(400).json({ 
+                message: 'Invalid role. Must be one of: professor, hod, coordinator, other' 
+            });
+        }
 
         // Check if manager already exists
         const existingManager = await Manager.findOne({ email });
         if (existingManager) {
-            return res.status(400).json({ message: 'Manager already exists' });
+            console.log('Manager already exists:', email);
+            return res.status(400).json({ message: 'Email already registered' });
         }
 
         // Create new manager
-        const manager = await Manager.create({
+        const manager = new Manager({
             name,
             email,
             password,
-            organization
+            organization,
+            department,
+            role
         });
+
+        // Save the manager
+        await manager.save();
+        console.log('Manager created successfully:', email);
 
         // Generate JWT token
         const token = jwt.sign(
@@ -34,10 +62,28 @@ router.post('/register', async (req, res) => {
             name: manager.name,
             email: manager.email,
             organization: manager.organization,
+            department: manager.department,
+            role: manager.role,
             token
         });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        console.error('Registration error:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
+        
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ 
+                message: 'Validation error', 
+                errors: Object.values(error.errors).map(err => err.message)
+            });
+        }
+        
+        res.status(500).json({ 
+            message: 'Server error during registration',
+            error: error.message
+        });
     }
 });
 
@@ -70,10 +116,13 @@ router.post('/login', async (req, res) => {
             name: manager.name,
             email: manager.email,
             organization: manager.organization,
+            department: manager.department,
+            role: manager.role,
             token
         });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Server error during login' });
     }
 });
 

@@ -38,6 +38,14 @@ const eventSchema = new mongoose.Schema({
         city: {
             type: String,
             required: true
+        },
+        state: {
+            type: String,
+            required: true
+        },
+        country: {
+            type: String,
+            required: true
         }
     },
     rules: {
@@ -53,13 +61,16 @@ const eventSchema = new mongoose.Schema({
             type: String,
             required: function() {
                 return this.entryFee > 0;
-            }
+            },
+            trim: true
         },
-        paymentRequired: {
-            type: Boolean,
-            default: function() {
-                return this.entryFee > 0;
-            }
+        accountName: {
+            type: String,
+            trim: true
+        },
+        notes: {
+            type: String,
+            trim: true
         }
     },
     maxTeams: {
@@ -67,66 +78,116 @@ const eventSchema = new mongoose.Schema({
         required: true,
         min: 1
     },
-    teamSize: {
-        min: {
-            type: Number,
-            required: true,
-            default: 1
-        },
-        max: {
-            type: Number,
-            required: true,
-            default: 4
-        }
-    },
-    departments: {
-        type: [String],
+    minTeamSize: {
+        type: Number,
         required: true,
-        default: ['All']
+        min: 1
     },
-    status: {
-        type: String,
-        enum: ['upcoming', 'ongoing', 'completed'],
-        default: 'upcoming'
+    maxTeamSize: {
+        type: Number,
+        required: true,
+        min: 1
     },
     registeredTeams: {
         type: Number,
         default: 0
     },
-    totalPaymentsReceived: {
-        type: Number,
-        default: 0
+    departments: {
+        type: [String],
+        required: true
+    },
+    skills: {
+        type: [String],
+        default: []
+    },
+    prizes: {
+        first: {
+            type: Number,
+            required: true
+        },
+        second: {
+            type: Number,
+            required: true
+        },
+        third: {
+            type: Number,
+            required: true
+        },
+        consolation: {
+            type: Number,
+            default: 0
+        }
+    },
+    status: {
+        type: String,
+        enum: ['draft', 'published', 'registration_closed', 'ongoing', 'completed'],
+        default: 'draft'
+    },
+    isPublic: {
+        type: Boolean,
+        default: false
+    },
+    isRegistrationOpen: {
+        type: Boolean,
+        default: true
     },
     shareLink: {
         type: String,
         unique: true,
         sparse: true
     },
-    isPublic: {
-        type: Boolean,
-        default: false
-    }
-}, { timestamps: true });
+    image: {
+        type: String,
+        default: "https://images.unsplash.com/photo-1531482615713-2afd69097998?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80"
+    },
+    whatsappLink: {
+        type: String,
+        validate: {
+            validator: function(v) {
+                // Allow empty/null values or valid WhatsApp group invite links
+                return !v || /^https:\/\/(chat\.whatsapp\.com|wa\.me)\/[a-zA-Z0-9_-]+$/.test(v);
+            },
+            message: props => `${props.value} is not a valid WhatsApp group invite link! It should start with 'https://chat.whatsapp.com/' or 'https://wa.me/'`
+        },
+        trim: true
+    },
+    teams: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Team'
+    }]
+}, {
+    timestamps: true
+});
 
-// Generate share link before saving if not exists
+// Virtual for total participants
+eventSchema.virtual('totalParticipants').get(function() {
+    return this.registeredTeams * this.maxTeamSize;
+});
+
+// Virtual field for team count
+eventSchema.virtual('teamsCount').get(function() {
+    return this.teams ? this.teams.length : 0;
+});
+
+// Pre-save middleware to update status based on dates
 eventSchema.pre('save', function(next) {
-    if (!this.shareLink) {
-        this.shareLink = `${this._id}-${Math.random().toString(36).substring(2, 8)}`;
+    const now = new Date();
+    
+    if (now < this.startDate) {
+        this.status = 'published';
+    } else if (now >= this.startDate && now <= this.endDate) {
+        this.status = 'ongoing';
+    } else if (now > this.endDate) {
+        this.status = 'completed';
     }
+    
+    if (now > this.registrationDeadline || this.registeredTeams >= this.maxTeams) {
+        this.status = 'registration_closed';
+    }
+    
     next();
 });
 
-// Virtual field for registration status
-eventSchema.virtual('isRegistrationOpen').get(function() {
-    return new Date() <= this.registrationDeadline;
-});
+const Event = mongoose.model('Event', eventSchema);
 
-// Virtual field for event status
-eventSchema.virtual('currentStatus').get(function() {
-    const now = new Date();
-    if (now < this.startDate) return 'upcoming';
-    if (now > this.endDate) return 'completed';
-    return 'ongoing';
-});
-
-module.exports = mongoose.model('Event', eventSchema);
+module.exports = Event;
