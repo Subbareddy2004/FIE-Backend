@@ -2,17 +2,29 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
+
+// Configure dotenv at the very beginning
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+// Validate essential environment variables
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'GEMINI_API_KEY'];
+for (const envVar of requiredEnvVars) {
+    if (!process.env[envVar]) {
+        console.error(`Error: ${envVar} is not configured in environment variables`);
+        process.exit(1);
+    }
+}
+
 const authRoutes = require('./routes/auth');
 const eventRoutes = require('./routes/events');
 const publicEventRoutes = require('./routes/publicEvents');
 const teamRoutes = require('./routes/teams');
 const studentAuthRoutes = require('./routes/studentAuth');
-const path = require('path');
+const chatbotRoutes = require('./routes/chatbot');
 
 // Import all models
 require('./models');
-
-dotenv.config();
 
 const app = express();
 
@@ -38,6 +50,7 @@ app.use('/api/public/events', publicEventRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/student', studentAuthRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // Test route
 app.get('/', (req, res) => {

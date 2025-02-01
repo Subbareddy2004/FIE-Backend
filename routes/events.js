@@ -318,4 +318,37 @@ router.get('/public', async (req, res) => {
     }
 });
 
+// Test route to add a sample hackathon
+router.post('/test-hackathon', async (req, res) => {
+  try {
+    const testHackathon = new Event({
+      title: "Web3 Innovation Hackathon",
+      description: "Build the future of decentralized applications",
+      startDate: new Date('2025-03-01'),
+      endDate: new Date('2025-03-03'),
+      venue: {
+        name: "Bangalore",
+        address: "India",
+        city: "Bangalore",
+        state: "Karnataka",
+        country: "India"
+      },
+      prizes: "First Prize: ₹1,00,000, Second Prize: ₹50,000",
+      requirements: "Knowledge of blockchain technology, web development",
+      registrationDeadline: new Date('2025-02-25'),
+      minTeamSize: 1,
+      maxTeamSize: 4,
+      maxTeams: 100,
+      departments: ["CS", "IT", "ECE"],
+      status: 'upcoming'
+    });
+
+    await testHackathon.save();
+    res.json({ message: 'Test hackathon added successfully' });
+  } catch (error) {
+    console.error('Error adding test hackathon:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

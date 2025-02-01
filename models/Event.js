@@ -147,6 +147,19 @@ const eventSchema = new mongoose.Schema({
             message: props => `${props.value} is not a valid WhatsApp group invite link! It should start with 'https://chat.whatsapp.com/' or 'https://wa.me/'`
         },
         trim: true
+    },
+    prizes: {
+        type: String,
+        required: true
+    },
+    requirements: {
+        type: String,
+        required: true
+    },
+    status: {
+        type: String,
+        enum: ['upcoming', 'ongoing', 'completed'],
+        default: 'upcoming'
     }
 }, {
     timestamps: true
