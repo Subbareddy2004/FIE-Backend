@@ -9,18 +9,20 @@ const PDFDocument = require('pdfkit');
 const mongoose = require('mongoose');
 
 // Create event - must come before parameterized routes
-router.post('/create', auth, async (req, res) => {
+router.post('/', auth, async (req, res) => {
     try {
         const event = new Event({
             ...req.body,
-            manager: req.user._id,
-            teams: []
+            manager: req.user._id
         });
         await event.save();
         res.status(201).json(event);
     } catch (error) {
         console.error('Error creating event:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        res.status(400).json({ 
+            message: 'Failed to create event',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+        });
     }
 });
 
@@ -102,26 +104,35 @@ router.get('/teams/:eventId', auth, async (req, res) => {
 });
 
 // Export event data as CSV
-router.get('/export-csv/:eventId', auth, async (req, res) => {
+router.get('/:eventId/export-csv', auth, async (req, res) => {
     try {
+        const { status } = req.query;
         const event = await Event.findOne({
             _id: req.params.eventId,
             manager: req.user._id
         });
+
         if (!event) {
             return res.status(404).json({ message: 'Event not found' });
         }
 
-        const teams = await Team.find({ event: req.params.eventId })
+        // Build query for teams
+        const query = { event: req.params.eventId };
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+
+        const teams = await Team.find(query)
             .populate('members', 'name email college department');
 
-        const fields = ['Team Name', 'Members', 'Emails', 'College', 'Department', 'Registration Date'];
+        const fields = ['Team Name', 'Members', 'Emails', 'College', 'Department', 'Status', 'Registration Date'];
         const data = teams.map(team => ({
             'Team Name': team.name,
             'Members': team.members.map(m => m.name).join(', '),
             'Emails': team.members.map(m => m.email).join(', '),
             'College': team.members[0]?.college || 'N/A',
             'Department': team.members[0]?.department || 'N/A',
+            'Status': team.status,
             'Registration Date': team.createdAt.toLocaleDateString()
         }));
 
@@ -131,6 +142,59 @@ router.get('/export-csv/:eventId', auth, async (req, res) => {
         res.send(csv);
     } catch (error) {
         console.error('Error exporting CSV:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// Export event data as PDF
+router.get('/:eventId/export-pdf', auth, async (req, res) => {
+    try {
+        const { status } = req.query;
+        const event = await Event.findOne({
+            _id: req.params.eventId,
+            manager: req.user._id
+        });
+
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+
+        // Build query for teams
+        const query = { event: req.params.eventId };
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+
+        const teams = await Team.find(query)
+            .populate('members', 'name email college department');
+
+        // Create PDF document
+        const doc = new PDFDocument();
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=${event.title}-teams.pdf`);
+        doc.pipe(res);
+
+        // Add content to PDF
+        doc.fontSize(20).text(event.title, { align: 'center' });
+        doc.moveDown();
+        doc.fontSize(14).text(`Teams Report (${status || 'all'} teams)`, { align: 'center' });
+        doc.moveDown();
+
+        teams.forEach((team, index) => {
+            doc.fontSize(12).text(`${index + 1}. Team: ${team.name}`);
+            doc.fontSize(10)
+                .text(`Members: ${team.members.map(m => m.name).join(', ')}`)
+                .text(`Emails: ${team.members.map(m => m.email).join(', ')}`)
+                .text(`College: ${team.members[0]?.college || 'N/A'}`)
+                .text(`Department: ${team.members[0]?.department || 'N/A'}`)
+                .text(`Status: ${team.status}`)
+                .text(`Registration Date: ${team.createdAt.toLocaleDateString()}`);
+            doc.moveDown();
+        });
+
+        doc.end();
+    } catch (error) {
+        console.error('Error exporting PDF:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });

@@ -150,11 +150,11 @@ const eventSchema = new mongoose.Schema({
     },
     prizes: {
         type: String,
-        required: true
+        default: 'To be announced'
     },
     requirements: {
         type: String,
-        required: true
+        default: 'No specific requirements'
     },
     status: {
         type: String,
