@@ -88,10 +88,34 @@ const eventSchema = new mongoose.Schema({
         required: true,
         min: 1
     },
-    registeredTeams: {
-        type: Number,
-        default: 0
-    },
+    teams: [{
+        teamId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Team',
+            required: true
+        },
+        teamName: {
+            type: String,
+            required: true
+        },
+        members: [{
+            name: String,
+            email: String,
+            role: {
+                type: String,
+                enum: ['leader', 'member']
+            }
+        }],
+        registrationDate: {
+            type: Date,
+            default: Date.now
+        },
+        paymentStatus: {
+            type: String,
+            enum: ['pending', 'verified', 'rejected', 'not_required'],
+            default: 'not_required'
+        }
+    }],
     departments: {
         type: [String],
         required: true
@@ -100,30 +124,7 @@ const eventSchema = new mongoose.Schema({
         type: [String],
         default: []
     },
-    prizes: {
-        first: {
-            type: Number,
-            required: true
-        },
-        second: {
-            type: Number,
-            required: true
-        },
-        third: {
-            type: Number,
-            required: true
-        },
-        consolation: {
-            type: Number,
-            default: 0
-        }
-    },
-    status: {
-        type: String,
-        enum: ['draft', 'published', 'registration_closed', 'ongoing', 'completed'],
-        default: 'draft'
-    },
-    isPublic: {
+    isPublished: {
         type: Boolean,
         default: false
     },
@@ -136,58 +137,19 @@ const eventSchema = new mongoose.Schema({
         unique: true,
         sparse: true
     },
-    image: {
-        type: String,
-        default: "https://images.unsplash.com/photo-1531482615713-2afd69097998?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80"
-    },
     whatsappLink: {
         type: String,
         validate: {
             validator: function(v) {
-                // Allow empty/null values or valid WhatsApp group invite links
-                return !v || /^https:\/\/(chat\.whatsapp\.com|wa\.me)\/[a-zA-Z0-9_-]+$/.test(v);
+                if (!v) return true;
+                return v.startsWith('https://chat.whatsapp.com/') || v.startsWith('https://wa.me/');
             },
             message: props => `${props.value} is not a valid WhatsApp group invite link! It should start with 'https://chat.whatsapp.com/' or 'https://wa.me/'`
         },
         trim: true
-    },
-    teams: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Team'
-    }]
+    }
 }, {
     timestamps: true
 });
 
-// Virtual for total participants
-eventSchema.virtual('totalParticipants').get(function() {
-    return this.registeredTeams * this.maxTeamSize;
-});
-
-// Virtual field for team count
-eventSchema.virtual('teamsCount').get(function() {
-    return this.teams ? this.teams.length : 0;
-});
-
-// Pre-save middleware to update status based on dates
-eventSchema.pre('save', function(next) {
-    const now = new Date();
-    
-    if (now < this.startDate) {
-        this.status = 'published';
-    } else if (now >= this.startDate && now <= this.endDate) {
-        this.status = 'ongoing';
-    } else if (now > this.endDate) {
-        this.status = 'completed';
-    }
-    
-    if (now > this.registrationDeadline || this.registeredTeams >= this.maxTeams) {
-        this.status = 'registration_closed';
-    }
-    
-    next();
-});
-
-const Event = mongoose.model('Event', eventSchema);
-
-module.exports = Event;
+module.exports = mongoose.model('Event', eventSchema);

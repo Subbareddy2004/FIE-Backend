@@ -29,15 +29,22 @@ router.get('/manager', auth, async (req, res) => {
     try {
         // Get all events for the manager
         const events = await Event.find({ manager: req.user._id })
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean(); // Use lean() to get plain objects
 
         // Get team counts for each event
         const eventsWithTeams = await Promise.all(events.map(async (event) => {
-            const teamCount = await Team.countDocuments({ event: event._id });
+            const teams = await Team.find({ event: event._id })
+                .select('teamName members paymentStatus')
+                .lean(); // Use lean() for teams too
+            
             return {
-                ...event.toObject(),
-                teams: await Team.find({ event: event._id }).select('_id'),
-                teamsCount: teamCount
+                ...event,
+                teams,
+                teamsCount: teams.length,
+                pendingTeams: teams.filter(t => t.paymentStatus === 'pending').length,
+                verifiedTeams: teams.filter(t => t.paymentStatus === 'verified').length,
+                totalParticipants: teams.reduce((acc, team) => acc + (team.members?.length || 0), 0)
             };
         }));
         
@@ -49,13 +56,17 @@ router.get('/manager', auth, async (req, res) => {
                 new Date(event.startDate) <= now && new Date(event.endDate) >= now
             ).length,
             upcomingEvents: events.filter(event => new Date(event.startDate) > now).length,
-            completedEvents: events.filter(event => new Date(event.endDate) < now).length
+            completedEvents: events.filter(event => new Date(event.endDate) < now).length,
+            totalTeams: eventsWithTeams.reduce((acc, event) => acc + event.teamsCount, 0),
+            pendingTeams: eventsWithTeams.reduce((acc, event) => acc + event.pendingTeams, 0),
+            verifiedTeams: eventsWithTeams.reduce((acc, event) => acc + event.verifiedTeams, 0),
+            totalParticipants: eventsWithTeams.reduce((acc, event) => acc + event.totalParticipants, 0)
         };
 
         res.json({ events: eventsWithTeams, stats });
     } catch (error) {
         console.error('Error fetching manager events:', error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 

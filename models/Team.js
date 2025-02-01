@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const teamSchema = new mongoose.Schema({
-    name: {
+    teamName: {
         type: String,
         required: [true, 'Team name is required'],
         trim: true
@@ -10,10 +10,6 @@ const teamSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Event',
         required: true
-    },
-    registrationDate: {
-        type: Date,
-        default: Date.now
     },
     members: [{
         name: {
@@ -36,7 +32,8 @@ const teamSchema = new mongoose.Schema({
         mobileNumber: {
             type: String,
             required: true,
-            trim: true
+            trim: true,
+            match: [/^\d{10}$/, 'Please enter a valid 10-digit mobile number']
         },
         isLeader: {
             type: Boolean,
@@ -51,15 +48,23 @@ const teamSchema = new mongoose.Schema({
     upiTransactionId: {
         type: String,
         trim: true,
-        required: function() {
-            return this.paymentStatus === 'pending';
-        }
+        sparse: true
+    },
+    registrationDate: {
+        type: Date,
+        default: Date.now
     },
     verificationDate: {
         type: Date
+    },
+    notes: {
+        type: String,
+        trim: true
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
 });
 
 // Add index for faster queries
@@ -88,6 +93,18 @@ teamSchema.pre('save', async function(next) {
         }
     }
     next();
+});
+
+// Virtual for leader
+teamSchema.virtual('leader').get(function() {
+    if (!this.members || !Array.isArray(this.members)) return null;
+    return this.members.find(member => member && member.isLeader);
+});
+
+// Virtual for member count
+teamSchema.virtual('memberCount').get(function() {
+    if (!this.members || !Array.isArray(this.members)) return 0;
+    return this.members.length;
 });
 
 module.exports = mongoose.model('Team', teamSchema);

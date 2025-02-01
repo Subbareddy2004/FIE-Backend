@@ -60,14 +60,12 @@ router.post('/register/:eventId', async (req, res) => {
 
         // Create new team with registration date
         const team = new Team({
-            ...req.body,
+            teamName: req.body.teamName,
             event: event._id,
-            registeredAt: new Date(),
+            members: req.body.members,
+            registrationDate: new Date(),
             paymentStatus: event.entryFee > 0 ? 'pending' : 'not_required',
-            paymentDetails: event.entryFee > 0 ? {
-                amount: event.entryFee,
-                upiTransactionId: req.body.upiTransactionId
-            } : undefined
+            upiTransactionId: event.entryFee > 0 ? req.body.upiTransactionId : undefined
         });
 
         await team.save();
@@ -77,7 +75,7 @@ router.post('/register/:eventId', async (req, res) => {
             await sendRegistrationPendingEmail(
                 team.members[0].email,
                 {
-                    teamName: team.name,
+                    teamName: team.teamName,
                     eventName: event.title,
                     paymentStatus: team.paymentStatus,
                     amount: event.entryFee,
@@ -313,7 +311,7 @@ router.get('/:eventId/export/pdf', auth, async (req, res) => {
 
         // Add teams data
         teams.forEach((team, index) => {
-            doc.fontSize(14).text(`Team ${index + 1}: ${team.name}`);
+            doc.fontSize(14).text(`Team ${index + 1}: ${team.teamName}`);
             doc.moveDown(0.5);
             team.members.forEach(member => {
                 doc.fontSize(10).text(`${member.isLeader ? 'Leader: ' : 'Member: '} ${member.name}`);
@@ -404,7 +402,7 @@ router.put('/:teamId/payment-status', auth, async (req, res) => {
             await sendPaymentVerificationEmail(
                 team.members.find(m => m.isLeader)?.email || team.members[0].email,
                 {
-                    teamName: team.name,
+                    teamName: team.teamName,
                     eventName: team.event.title,
                     status,
                     amount: team.event.entryFee,

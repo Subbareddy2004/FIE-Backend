@@ -9,6 +9,9 @@ const teamRoutes = require('./routes/teams');
 const studentAuthRoutes = require('./routes/studentAuth');
 const path = require('path');
 
+// Import all models
+require('./models');
+
 dotenv.config();
 
 const app = express();

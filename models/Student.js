@@ -22,12 +22,33 @@ const studentSchema = new mongoose.Schema({
     registeredHackathons: [{
         hackathonId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Hackathon'
+            ref: 'Event',
+            required: true
         },
-        teamName: String,
-        teamMembers: [String],
+        teamId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Team',
+            required: true
+        },
+        teamName: {
+            type: String,
+            required: true
+        },
+        teamMembers: [{
+            type: String,
+            required: true
+        }],
+        role: {
+            type: String,
+            enum: ['leader', 'member'],
+            required: true
+        },
         projectDescription: String,
-        submissionDate: Date
+        submissionDate: {
+            type: Date,
+            default: Date.now,
+            required: true
+        }
     }]
 }, { timestamps: true });
 
